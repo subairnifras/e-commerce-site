@@ -1,0 +1,5 @@
+server.port: 8083
+spring:
+  application.name: cart-service
+  data.mongodb.uri: ${MONGODB_URI:mongodb://localhost:27017/cartdb}
+management.endpoints.web.exposure.include: health,info
