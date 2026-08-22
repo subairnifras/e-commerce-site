@@ -1,0 +1,28 @@
+name: Build and Test
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+jobs:
+  java-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [member1-product-service, member2-customer-service, member3-cart-service, member4-order-service, member5-security-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Test ${{ matrix.service }}
+        run: mvn -B -f ${{ matrix.service }}/pom.xml test
+      - name: Build container ${{ matrix.service }}
+        run: docker build -t soc/${{ matrix.service }}:${{ github.sha }} ${{ matrix.service }}
+  compose-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config
+

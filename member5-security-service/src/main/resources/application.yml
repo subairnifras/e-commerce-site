@@ -1,0 +1,6 @@
+server.port: 8085
+spring:
+  application.name: security-service
+  data.mongodb.uri: ${MONGODB_URI:mongodb://localhost:27017/securitydb}
+app.initial-admin-key: ${INITIAL_ADMIN_KEY:soc-admin-change-me}
+management.endpoints.web.exposure.include: health,info
