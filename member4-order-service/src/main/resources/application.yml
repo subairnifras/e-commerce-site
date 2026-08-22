@@ -1,0 +1,5 @@
+server.port: 8084
+spring:
+  application.name: order-service
+  data.mongodb.uri: ${MONGODB_URI:mongodb://localhost:27017/orderdb}
+management.endpoints.web.exposure.include: health,info
