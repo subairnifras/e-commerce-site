@@ -1,5 +1,5 @@
 package com.soc.gateway;
-import org.springframework.beans.factory.annotation.Value;import org.springframework.boot.*;import org.springframework.boot.autoconfigure.*;import org.springframework.cloud.gateway.filter.*;import org.springframework.context.annotation.Bean;import org.springframework.core.*;import org.springframework.http.*;import org.springframework.web.cors.reactive.*;import org.springframework.web.reactive.function.client.WebClient;import reactor.core.publisher.Mono;import java.util.*;
+import org.springframework.beans.factory.annotation.Value;import org.springframework.boot.*;import org.springframework.boot.autoconfigure.*;import org.springframework.cloud.gateway.filter.*;import org.springframework.context.annotation.Bean;import org.springframework.core.*;import org.springframework.http.*;import org.springframework.web.cors.CorsConfiguration;import org.springframework.web.cors.reactive.*;import org.springframework.web.reactive.function.client.WebClient;import reactor.core.publisher.Mono;import java.util.*;
 @SpringBootApplication public class ApiGatewayApplication{
  public static void main(String[]a){SpringApplication.run(ApiGatewayApplication.class,a);}
  @Bean WebClient webClient(){return WebClient.builder().build();}
