@@ -1,0 +1,72 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ecommerce-mongodb
+    restart: unless-stopped
+    expose: ["27017"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-change-me}
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval \"db.adminCommand('ping')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  security-service:
+    build: ./member5-security-service
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/securitydb?authSource=admin
+      INITIAL_ADMIN_KEY: ${INITIAL_ADMIN_KEY:-soc-admin-change-me}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    depends_on: [mongodb]
+    expose: ["8085"]
+
+  product-service:
+    build: ./member1-product-service
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/productdb?authSource=admin
+    depends_on: [mongodb]
+    expose: ["8081"]
+
+  customer-service:
+    build: ./member2-customer-service
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/customerdb?authSource=admin
+    depends_on: [mongodb]
+    expose: ["8082"]
+
+  cart-service:
+    build: ./member3-cart-service
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/cartdb?authSource=admin
+    depends_on: [mongodb]
+    expose: ["8083"]
+
+  order-service:
+    build: ./member4-order-service
+    environment:
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/orderdb?authSource=admin
+    depends_on: [mongodb]
+    expose: ["8084"]
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      SECURITY_URL: http://security-service:8085
+      PRODUCT_URL: http://product-service:8081
+      CUSTOMER_URL: http://customer-service:8082
+      CART_URL: http://cart-service:8083
+      ORDER_URL: http://order-service:8084
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    depends_on: [security-service, product-service, customer-service, cart-service, order-service]
+    ports: ["8080:8080"]
+
+  client:
+    build: ./client
+    depends_on: [api-gateway]
+    ports: ["3000:80"]
+
+volumes:
+  mongo-data:
