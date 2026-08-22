@@ -1,0 +1,29 @@
+server.port: 8080
+spring:
+  application.name: api-gateway
+  cloud.gateway:
+    routes:
+      - id: products
+        uri: ${PRODUCT_URL:http://localhost:8081}
+        predicates: [Path=/api/products/**]
+        filters: ['RewritePath=/api/(?<segment>.*), /$\{segment}']
+      - id: customers
+        uri: ${CUSTOMER_URL:http://localhost:8082}
+        predicates: [Path=/api/customers/**]
+        filters: ['RewritePath=/api/(?<segment>.*), /$\{segment}']
+      - id: carts
+        uri: ${CART_URL:http://localhost:8083}
+        predicates: [Path=/api/carts/**]
+        filters: ['RewritePath=/api/(?<segment>.*), /$\{segment}']
+      - id: orders
+        uri: ${ORDER_URL:http://localhost:8084}
+        predicates: [Path=/api/orders/**]
+        filters: ['RewritePath=/api/(?<segment>.*), /$\{segment}']
+      - id: security
+        uri: ${SECURITY_URL:http://localhost:8085}
+        predicates: [Path=/api/security/**]
+        filters: ['RewritePath=/api/(?<segment>.*), /$\{segment}']
+management.endpoints.web.exposure.include: health,info,gateway
+app:
+  security-url: ${SECURITY_URL:http://localhost:8085}
+  cors-origin: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
