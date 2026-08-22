@@ -8,9 +8,6 @@ services:
     ports:
       - "27017:27017"
 
-    expose:
-      - "27017"
-
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-change-me}
@@ -38,7 +35,10 @@ services:
 
       INITIAL_ADMIN_KEY: ${INITIAL_ADMIN_KEY:-soc-admin-change-me}
 
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin@socshop.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeMe123!}
+
+      SESSION_DURATION_HOURS: ${SESSION_DURATION_HOURS:-8}
 
     depends_on:
       mongodb:
@@ -161,15 +161,6 @@ services:
   client:
     build:
       context: ./client
-
-    environment:
-      # Nginx receives the key from .env.
-      # The key is not available in browser JavaScript.
-      INTERNAL_API_KEY: ${INITIAL_ADMIN_KEY:-soc-admin-change-me}
-
-      # Only replace INTERNAL_API_KEY inside nginx.conf.
-      # Nginx variables such as $uri and $host remain unchanged.
-      NGINX_ENVSUBST_FILTER: INTERNAL_API_KEY
 
     depends_on:
       api-gateway:

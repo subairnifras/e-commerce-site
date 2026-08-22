@@ -2,14 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1"
     >
 
     <title>SOC Shop</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -21,59 +19,163 @@
     </a>
 
     <nav>
-        <button onclick="show('shop')">
+        <button
+            id="customerPortalButton"
+            class="hidden"
+            onclick="show('shop')"
+        >
             Customer Portal
         </button>
 
-        <button onclick="showCart()">
+        <button
+            id="cartButton"
+            class="hidden"
+            onclick="showCart()"
+        >
             Cart <span id="cartCount">0</span>
         </button>
 
-        <button onclick="show('admin')">
+        <button
+            id="adminPortalButton"
+            class="hidden"
+            onclick="show('admin')"
+        >
             Admin Portal
+        </button>
+
+        <button
+            id="logoutButton"
+            class="hidden"
+            onclick="logout()"
+        >
+            Logout
         </button>
     </nav>
 </header>
 
 <main>
 
-    <section
-        class="hero"
-        style="grid-template-columns: 1fr;"
-    >
-        <div>
-            <p class="eyebrow">
-                MICROSERVICE E-COMMERCE
-            </p>
-
-            <h1>
-                Everything you need,
-                <br>
-                <em>beautifully simple.</em>
-            </h1>
-
-            <p>
-                Products, secure checkout and printable bills
-                in one fast store.
-            </p>
-
-            <button
-                onclick="document.querySelector('#shop').scrollIntoView({
-                    behavior: 'smooth'
-                })"
-            >
-                Start shopping
-            </button>
-        </div>
-    </section>
-
-    <!-- Customer portal -->
-    <section id="shop">
+    <!-- Login and registration -->
+    <section id="auth">
 
         <div class="section-title">
             <div>
                 <p class="eyebrow">
+                    SECURE ACCESS
+                </p>
+
+                <h1>Welcome to SOC Shop</h1>
+
+                <p>
+                    Customers can create an account.
+                    Administrators can use their configured admin account.
+                </p>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+
+            <!-- Login -->
+            <div class="panel">
+                <h2>Customer / Admin login</h2>
+
+                <div class="form">
+                    <input
+                        id="loginUsername"
+                        type="email"
+                        placeholder="Email or username"
+                        autocomplete="username"
+                    >
+
+                    <input
+                        id="loginPassword"
+                        type="password"
+                        placeholder="Password"
+                        autocomplete="current-password"
+                    >
+
+                    <button onclick="login()">
+                        Login securely
+                    </button>
+                </div>
+
+                <p id="loginResult" class="notice"></p>
+            </div>
+
+            <!-- Customer registration -->
+            <div class="panel">
+                <h2>Create customer account</h2>
+
+                <div class="form">
+                    <input
+                        id="registerName"
+                        type="text"
+                        placeholder="Full name"
+                    >
+
+                    <input
+                        id="registerEmail"
+                        type="email"
+                        placeholder="Email"
+                        autocomplete="username"
+                    >
+
+                    <input
+                        id="registerPassword"
+                        type="password"
+                        placeholder="Password - minimum 8 characters"
+                        autocomplete="new-password"
+                    >
+
+                    <input
+                        id="registerPhone"
+                        type="text"
+                        placeholder="Phone number"
+                    >
+
+                    <input
+                        id="registerAddress"
+                        type="text"
+                        placeholder="Delivery address"
+                    >
+
+                    <button onclick="registerCustomer()">
+                        Register customer
+                    </button>
+                </div>
+
+                <p id="registerResult" class="notice"></p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Customer portal -->
+    <section id="shop" class="hidden">
+
+        <div class="hero" style="grid-template-columns:1fr;">
+            <div>
+                <p class="eyebrow">
                     CUSTOMER PORTAL
+                </p>
+
+                <h1>
+                    Everything you need,
+                    <br>
+                    <em>beautifully simple.</em>
+                </h1>
+
+                <p id="activeCustomer">
+                    Customer account
+                </p>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    PRODUCTS
                 </p>
 
                 <h2>Featured products</h2>
@@ -86,46 +188,6 @@
 
         <div id="products" class="grid">
             <p>Loading products...</p>
-        </div>
-
-        <div class="panel">
-            <h2>Customer details</h2>
-
-            <p id="activeCustomer" class="notice">
-                Register before adding products to your cart.
-            </p>
-
-            <div class="form">
-                <input
-                    id="cname"
-                    type="text"
-                    placeholder="Name"
-                >
-
-                <input
-                    id="cemail"
-                    type="email"
-                    placeholder="Email"
-                >
-
-                <input
-                    id="cphone"
-                    type="text"
-                    placeholder="Phone"
-                >
-
-                <input
-                    id="caddress"
-                    type="text"
-                    placeholder="Delivery address"
-                >
-
-                <button onclick="createCustomer()">
-                    Register & use customer
-                </button>
-            </div>
-
-            <pre id="customerResult"></pre>
         </div>
 
         <!-- Shopping cart -->
@@ -174,6 +236,8 @@
                 </p>
 
                 <h2>Store management</h2>
+
+                <p id="activeAdmin"></p>
             </div>
         </div>
 

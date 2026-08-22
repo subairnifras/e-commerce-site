@@ -3,65 +3,416 @@ const api = '/api';
 let productCache = [];
 let currentCart = null;
 
-// API key is securely added by the Nginx container.
-// The browser does not receive or store the API key.
-const headers = () => ({
-    'Content-Type': 'application/json'
-});
-
-const customer = () => {
+/*
+ * The browser stores only the temporary login session.
+ * Passwords and API keys are never stored in JavaScript.
+ */
+function session() {
     try {
         return JSON.parse(
-            localStorage.getItem('socCustomer')
+            sessionStorage.getItem('socSession')
         );
     } catch {
         return null;
     }
-};
-
-function show(id) {
-    document
-        .querySelector('#shop')
-        .classList.toggle('hidden', id !== 'shop');
-
-    document
-        .querySelector('#admin')
-        .classList.toggle('hidden', id !== 'admin');
 }
 
-function showCart() {
-    show('shop');
+function customer() {
+    try {
+        return JSON.parse(
+            sessionStorage.getItem('socCustomer')
+        );
+    } catch {
+        return null;
+    }
+}
 
-    document.querySelector('#cartPanel').scrollIntoView({
-        behavior: 'smooth'
-    });
+function requestHeaders() {
+    const currentSession = session();
 
-    loadCart();
+    const result = {
+        'Content-Type': 'application/json'
+    };
+
+    if (currentSession?.token) {
+        result.Authorization =
+            `Bearer ${currentSession.token}`;
+    }
+
+    return result;
 }
 
 async function call(path, options = {}) {
     const response = await fetch(api + path, {
         ...options,
         headers: {
-            ...headers(),
+            ...requestHeaders(),
             ...(options.headers || {})
         }
     });
 
-    const text = await response.text();
+    const responseText = await response.text();
 
     if (!response.ok) {
+        let message = responseText;
+
+        try {
+            const errorBody = JSON.parse(responseText);
+
+            message =
+                errorBody.error ||
+                errorBody.message ||
+                responseText;
+        } catch {
+            // Response was not JSON.
+        }
+
+        if (response.status === 401 && session()) {
+            clearSession();
+            applySession();
+        }
+
         throw new Error(
-            text || `Request failed (${response.status})`
+            message ||
+            `Request failed (${response.status})`
         );
+    }
+
+    if (!responseText) {
+        return null;
     }
 
     const contentType =
         response.headers.get('content-type') || '';
 
     return contentType.includes('json')
-        ? JSON.parse(text)
-        : text;
+        ? JSON.parse(responseText)
+        : responseText;
+}
+
+function hideAllPortals() {
+    document.querySelector('#auth')
+        .classList.add('hidden');
+
+    document.querySelector('#shop')
+        .classList.add('hidden');
+
+    document.querySelector('#admin')
+        .classList.add('hidden');
+}
+
+function show(id) {
+    const currentSession = session();
+
+    if (!currentSession) {
+        hideAllPortals();
+
+        document.querySelector('#auth')
+            .classList.remove('hidden');
+
+        return;
+    }
+
+    if (
+        id === 'admin' &&
+        currentSession.role !== 'ADMIN'
+    ) {
+        alert('Administrator access is required');
+        return;
+    }
+
+    if (
+        id === 'shop' &&
+        currentSession.role !== 'CUSTOMER'
+    ) {
+        alert('Customer access is required');
+        return;
+    }
+
+    hideAllPortals();
+
+    document.querySelector(`#${id}`)
+        .classList.remove('hidden');
+}
+
+function applySession() {
+    const currentSession = session();
+
+    const customerButton =
+        document.querySelector('#customerPortalButton');
+
+    const cartButton =
+        document.querySelector('#cartButton');
+
+    const adminButton =
+        document.querySelector('#adminPortalButton');
+
+    const logoutButton =
+        document.querySelector('#logoutButton');
+
+    customerButton.classList.add('hidden');
+    cartButton.classList.add('hidden');
+    adminButton.classList.add('hidden');
+    logoutButton.classList.add('hidden');
+
+    hideAllPortals();
+
+    if (!currentSession) {
+        document.querySelector('#auth')
+            .classList.remove('hidden');
+
+        return;
+    }
+
+    logoutButton.classList.remove('hidden');
+
+    if (currentSession.role === 'ADMIN') {
+        adminButton.classList.remove('hidden');
+
+        document.querySelector('#activeAdmin')
+            .textContent =
+            `Logged in as ${currentSession.username}`;
+
+        show('admin');
+        loadOrders();
+        return;
+    }
+
+    customerButton.classList.remove('hidden');
+    cartButton.classList.remove('hidden');
+
+    show('shop');
+    renderCustomer();
+    loadProducts();
+    loadCart();
+}
+
+async function login() {
+    const result =
+        document.querySelector('#loginResult');
+
+    const username =
+        document.querySelector('#loginUsername')
+            .value
+            .trim();
+
+    const password =
+        document.querySelector('#loginPassword')
+            .value;
+
+    if (!username || !password) {
+        result.textContent =
+            'Enter your email and password.';
+        return;
+    }
+
+    result.textContent = 'Logging in...';
+
+    try {
+        const loginSession = await call(
+            '/auth/login',
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    username,
+                    password
+                })
+            }
+        );
+
+        sessionStorage.setItem(
+            'socSession',
+            JSON.stringify(loginSession)
+        );
+
+        if (
+            loginSession.role === 'CUSTOMER' &&
+            loginSession.customerId
+        ) {
+            const customerDetails = await call(
+                `/customers/${loginSession.customerId}`
+            );
+
+            sessionStorage.setItem(
+                'socCustomer',
+                JSON.stringify(customerDetails)
+            );
+        } else {
+            sessionStorage.removeItem('socCustomer');
+        }
+
+        document.querySelector('#loginPassword')
+            .value = '';
+
+        result.textContent = '';
+
+        applySession();
+
+    } catch (error) {
+        result.textContent = error.message;
+    }
+}
+
+async function registerCustomer() {
+    const result =
+        document.querySelector('#registerResult');
+
+    const name =
+        document.querySelector('#registerName')
+            .value
+            .trim();
+
+    const email =
+        document.querySelector('#registerEmail')
+            .value
+            .trim()
+            .toLowerCase();
+
+    const password =
+        document.querySelector('#registerPassword')
+            .value;
+
+    const phone =
+        document.querySelector('#registerPhone')
+            .value
+            .trim();
+
+    const address =
+        document.querySelector('#registerAddress')
+            .value
+            .trim();
+
+    if (
+        !name ||
+        !email ||
+        !password ||
+        !phone ||
+        !address
+    ) {
+        result.textContent =
+            'Please complete every field.';
+        return;
+    }
+
+    if (password.length < 8) {
+        result.textContent =
+            'Password must contain at least 8 characters.';
+        return;
+    }
+
+    result.textContent =
+        'Creating your customer account...';
+
+    try {
+        /*
+         * First create the customer profile.
+         */
+        const createdCustomer = await call(
+            '/customers',
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    name,
+                    email,
+                    phone,
+                    address
+                })
+            }
+        );
+
+        /*
+         * Then create the secure login account linked
+         * to the customer profile.
+         */
+        await call('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                username: email,
+                password,
+                customerId: createdCustomer.id
+            })
+        });
+
+        document.querySelector('#loginUsername')
+            .value = email;
+
+        document.querySelector('#loginPassword')
+            .value = password;
+
+        result.textContent =
+            'Registration successful. Logging in...';
+
+        await login();
+
+    } catch (error) {
+        result.textContent = error.message;
+    }
+}
+
+async function logout() {
+    try {
+        if (session()) {
+            await call('/auth/logout', {
+                method: 'POST'
+            });
+        }
+    } catch {
+        // Clear the local session even if the service is unavailable.
+    }
+
+    clearSession();
+    applySession();
+}
+
+function clearSession() {
+    sessionStorage.removeItem('socSession');
+    sessionStorage.removeItem('socCustomer');
+
+    productCache = [];
+    currentCart = null;
+
+    document.querySelector('#cartCount')
+        .textContent = '0';
+
+    document.querySelector('#cartTotal')
+        .textContent = 'Total: LKR 0';
+}
+
+function renderCustomer() {
+    const selectedCustomer = customer();
+
+    const customerDisplay =
+        document.querySelector('#activeCustomer');
+
+    if (!selectedCustomer) {
+        customerDisplay.textContent =
+            'Customer information unavailable.';
+        return;
+    }
+
+    customerDisplay.textContent =
+        `Buying as ${selectedCustomer.name} · ` +
+        `Delivery to ${selectedCustomer.address}`;
+}
+
+function showCart() {
+    show('shop');
+
+    document.querySelector('#cartPanel')
+        .scrollIntoView({
+            behavior: 'smooth'
+        });
+
+    loadCart();
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
 async function loadProducts() {
@@ -76,23 +427,29 @@ async function loadProducts() {
                 <article class="product">
                     <img
                         src="${
-                            product.imageUrl ||
-                            'https://placehold.co/600x400?text=Product'
+                            escapeHtml(
+                                product.imageUrl ||
+                                'https://placehold.co/600x400?text=Product'
+                            )
                         }"
-                        alt="${product.name}"
+                        alt="${escapeHtml(product.name)}"
                     >
 
                     <div>
-                        <h3>${product.name}</h3>
+                        <h3>
+                            ${escapeHtml(product.name)}
+                        </h3>
 
-                        <p>${product.description}</p>
+                        <p>
+                            ${escapeHtml(product.description)}
+                        </p>
 
                         <p class="price">
-                            LKR ${product.price}
+                            LKR ${Number(product.price).toFixed(2)}
                         </p>
 
                         <small>
-                            ${product.stock} in stock
+                            ${Number(product.stock)} in stock
                         </small>
 
                         <div
@@ -116,7 +473,6 @@ async function loadProducts() {
                             </button>
 
                             <button
-                                class="buy-now"
                                 style="background:#f97316"
                                 ${product.stock < 1
                                     ? 'disabled'
@@ -129,79 +485,11 @@ async function loadProducts() {
                     </div>
                 </article>
             `).join('') ||
-            '<p>No products yet.</p>';
+            '<p>No products available.</p>';
 
     } catch (error) {
-        productContainer.innerHTML = `
-            <pre>${error.message}</pre>
-        `;
-    }
-}
-
-async function createCustomer() {
-    const result =
-        document.querySelector('#customerResult');
-
-    const name =
-        document.querySelector('#cname').value.trim();
-
-    const email =
-        document.querySelector('#cemail').value.trim();
-
-    const phone =
-        document.querySelector('#cphone').value.trim();
-
-    const address =
-        document.querySelector('#caddress').value.trim();
-
-    if (!name || !email || !phone || !address) {
-        result.textContent =
-            'Please complete all customer fields.';
-        return;
-    }
-
-    try {
-        const createdCustomer =
-            await call('/customers', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name,
-                    email,
-                    phone,
-                    address
-                })
-            });
-
-        localStorage.setItem(
-            'socCustomer',
-            JSON.stringify(createdCustomer)
-        );
-
-        result.textContent =
-            `Customer ready: ${createdCustomer.name} ` +
-            `(${createdCustomer.id})`;
-
-        renderCustomer();
-        await loadCart();
-
-    } catch (error) {
-        result.textContent = error.message;
-    }
-}
-
-function renderCustomer() {
-    const selectedCustomer = customer();
-
-    const customerDisplay =
-        document.querySelector('#activeCustomer');
-
-    if (selectedCustomer) {
-        customerDisplay.textContent =
-            `Buying as ${selectedCustomer.name} · ` +
-            `Delivery to ${selectedCustomer.address}`;
-    } else {
-        customerDisplay.textContent =
-            'Register before adding products to your cart.';
+        productContainer.innerHTML =
+            `<pre>${escapeHtml(error.message)}</pre>`;
     }
 }
 
@@ -209,14 +497,7 @@ async function addToCart(productId) {
     const selectedCustomer = customer();
 
     if (!selectedCustomer) {
-        alert('Please register customer details first');
-
-        document
-            .querySelector('#activeCustomer')
-            .scrollIntoView({
-                behavior: 'smooth'
-            });
-
+        alert('Please log in as a customer');
         return;
     }
 
@@ -224,13 +505,8 @@ async function addToCart(productId) {
         item => item.id === productId
     );
 
-    if (!product) {
-        alert('Product not found');
-        return;
-    }
-
-    if (product.stock < 1) {
-        alert('Product is out of stock');
+    if (!product || product.stock < 1) {
+        alert('Product is unavailable');
         return;
     }
 
@@ -261,14 +537,7 @@ async function buyNow(productId) {
     const selectedCustomer = customer();
 
     if (!selectedCustomer) {
-        alert('Please register customer details first');
-
-        document
-            .querySelector('#activeCustomer')
-            .scrollIntoView({
-                behavior: 'smooth'
-            });
-
+        alert('Please log in as a customer');
         return;
     }
 
@@ -276,21 +545,14 @@ async function buyNow(productId) {
         item => item.id === productId
     );
 
-    if (!product) {
-        alert('Product not found');
+    if (!product || product.stock < 1) {
+        alert('Product is unavailable');
         return;
     }
 
-    if (product.stock < 1) {
-        alert('Product is out of stock');
-        return;
-    }
-
-    const confirmed = confirm(
+    if (!confirm(
         `Buy ${product.name} for LKR ${product.price}?`
-    );
-
-    if (!confirmed) {
+    )) {
         return;
     }
 
@@ -301,27 +563,22 @@ async function buyNow(productId) {
                 customerId: selectedCustomer.id,
                 customerName: selectedCustomer.name,
                 address: selectedCustomer.address,
-                items: [
-                    {
-                        productId: product.id,
-                        productName: product.name,
-                        quantity: 1,
-                        unitPrice: product.price
-                    }
-                ]
+                items: [{
+                    productId: product.id,
+                    productName: product.name,
+                    quantity: 1,
+                    unitPrice: product.price
+                }]
             })
         });
 
-        // Refresh products to display reduced stock.
         await loadProducts();
 
-        const openBillNow = confirm(
+        if (confirm(
             `Purchase successful.\n` +
             `Total: LKR ${order.total}\n\n` +
             `Open printable bill?`
-        );
-
-        if (openBillNow) {
+        )) {
             openBill(order.id);
         }
 
@@ -338,9 +595,8 @@ async function loadCart() {
 
     if (!selectedCustomer) {
         currentCart = null;
-
         cartContainer.innerHTML =
-            '<p>Register customer details before using the cart.</p>';
+            '<p>Please log in as a customer.</p>';
 
         updateCartSummary();
         return;
@@ -351,15 +607,17 @@ async function loadCart() {
             `/carts/${selectedCustomer.id}`
         );
 
-        if (!currentCart.items.length) {
+        const items = currentCart?.items || [];
+
+        if (!items.length) {
             cartContainer.innerHTML =
                 '<p>Your cart is empty.</p>';
         } else {
             cartContainer.innerHTML =
-                currentCart.items.map(item => `
+                items.map(item => `
                     <div class="cart-row">
                         <strong>
-                            ${item.productName}
+                            ${escapeHtml(item.productName)}
                         </strong>
 
                         <span>
@@ -390,9 +648,8 @@ async function loadCart() {
         updateCartSummary();
 
     } catch (error) {
-        cartContainer.innerHTML = `
-            <pre>${error.message}</pre>
-        `;
+        cartContainer.innerHTML =
+            `<pre>${escapeHtml(error.message)}</pre>`;
     }
 }
 
@@ -400,15 +657,15 @@ function updateCartSummary() {
     const items = currentCart?.items || [];
 
     const totalQuantity = items.reduce(
-        (total, item) =>
-            total + item.quantity,
+        (total, item) => total + item.quantity,
         0
     );
 
-    document.querySelector('#cartCount').textContent =
-        totalQuantity;
+    document.querySelector('#cartCount')
+        .textContent = totalQuantity;
 
-    document.querySelector('#cartTotal').textContent =
+    document.querySelector('#cartTotal')
+        .textContent =
         `Total: LKR ${currentCart?.total || 0}`;
 }
 
@@ -420,7 +677,7 @@ async function removeFromCart(productId) {
     }
 
     try {
-        currentCart = await call(
+        await call(
             `/carts/${selectedCustomer.id}/items/${productId}`,
             {
                 method: 'DELETE'
@@ -441,7 +698,7 @@ async function checkout() {
         document.querySelector('#checkoutResult');
 
     if (!selectedCustomer) {
-        alert('Please register customer details first');
+        alert('Please log in as a customer');
         return;
     }
 
@@ -461,7 +718,6 @@ async function checkout() {
             })
         });
 
-        // Clear cart only after order succeeds.
         await call(`/carts/${selectedCustomer.id}`, {
             method: 'DELETE'
         });
@@ -472,16 +728,11 @@ async function checkout() {
             `Total: LKR ${order.total}`;
 
         await loadCart();
-
-        // Reload product quantities.
         await loadProducts();
 
-        const openBillNow = confirm(
-            'Order placed successfully. ' +
-            'Open printable bill now?'
-        );
-
-        if (openBillNow) {
+        if (confirm(
+            'Order placed successfully. Open the bill?'
+        )) {
             openBill(order.id);
         }
 
@@ -491,33 +742,38 @@ async function checkout() {
 }
 
 async function addProduct() {
+    if (session()?.role !== 'ADMIN') {
+        alert('Administrator access is required');
+        return;
+    }
+
     const name =
-        document.querySelector('#pname').value.trim();
+        document.querySelector('#pname')
+            .value
+            .trim();
 
     const description =
-        document
-            .querySelector('#pdescription')
+        document.querySelector('#pdescription')
             .value
             .trim();
 
     const price =
-        Number(
-            document.querySelector('#pprice').value
-        );
+        Number(document.querySelector('#pprice').value);
 
     const stock =
-        Number(
-            document.querySelector('#pstock').value
-        );
+        Number(document.querySelector('#pstock').value);
 
     const imageUrl =
-        document.querySelector('#pimage').value.trim();
+        document.querySelector('#pimage')
+            .value
+            .trim();
 
     if (
         !name ||
         !description ||
         price <= 0 ||
-        stock < 0
+        stock < 0 ||
+        !Number.isInteger(stock)
     ) {
         alert('Please enter valid product information');
         return;
@@ -535,15 +791,13 @@ async function addProduct() {
             })
         });
 
-        alert('Product created');
+        alert('Product created successfully');
 
         document.querySelector('#pname').value = '';
         document.querySelector('#pdescription').value = '';
         document.querySelector('#pprice').value = '';
         document.querySelector('#pstock').value = '';
         document.querySelector('#pimage').value = '';
-
-        await loadProducts();
 
     } catch (error) {
         alert(error.message);
@@ -554,16 +808,22 @@ async function loadOrders() {
     const orderContainer =
         document.querySelector('#orders');
 
+    if (session()?.role !== 'ADMIN') {
+        orderContainer.innerHTML =
+            '<p>Administrator access is required.</p>';
+        return;
+    }
+
     try {
         const orderList = await call('/orders');
 
         orderContainer.innerHTML =
             orderList.map(order => `
                 <p>
-                    <b>${order.id}</b>
-                    — ${order.customerName}
-                    — LKR ${order.total}
-                    — ${order.status}
+                    <b>${escapeHtml(order.id)}</b>
+                    — ${escapeHtml(order.customerName)}
+                    — LKR ${Number(order.total).toFixed(2)}
+                    — ${escapeHtml(order.status)}
 
                     <button
                         onclick="openBill('${order.id}')"
@@ -572,12 +832,11 @@ async function loadOrders() {
                     </button>
                 </p>
             `).join('') ||
-            '<p>No orders yet.</p>';
+            '<p>No orders available.</p>';
 
     } catch (error) {
-        orderContainer.innerHTML = `
-            <pre>${error.message}</pre>
-        `;
+        orderContainer.innerHTML =
+            `<pre>${escapeHtml(error.message)}</pre>`;
     }
 }
 
@@ -590,9 +849,7 @@ async function openBill(orderId) {
         const billWindow = window.open();
 
         if (!billWindow) {
-            alert(
-                'Please allow pop-ups to open the bill'
-            );
+            alert('Please allow pop-ups to open the bill');
             return;
         }
 
@@ -604,8 +861,5 @@ async function openBill(orderId) {
     }
 }
 
-// Automatically load the site.
-// Nginx adds the API key securely.
-renderCustomer();
-loadProducts();
-loadCart();
+/* Start application using the saved browser session. */
+applySession();
