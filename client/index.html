@@ -1,6 +1,251 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SOC Shop</title><link rel="stylesheet" href="style.css"></head><body>
-<header><a class="brand">SOC<span>Shop</span></a><nav><button onclick="show('shop')">Customer Portal</button><button onclick="showCart()">Cart <span id="cartCount">0</span></button><button onclick="show('admin')">Admin Portal</button></nav></header>
-<main><section class="hero"><div><p class="eyebrow">MICROSERVICE E-COMMERCE</p><h1>Everything you need,<br><em>beautifully simple.</em></h1><p>Products, secure checkout and printable bills in one fast store.</p></div><div class="keybox"><label>API Key</label><input id="apiKey" type="password" placeholder="Enter your API key"><button onclick="saveKey()">Save key</button><small>Demo admin key: set in your .env file</small></div></section>
-<section id="shop"><div class="section-title"><div><p class="eyebrow">CUSTOMER PORTAL</p><h2>Featured products</h2></div><button onclick="loadProducts()">Refresh</button></div><div id="products" class="grid"><p>Enter an API key and load products.</p></div><div class="panel"><h2>Customer details</h2><p id="activeCustomer" class="notice">Register before adding products to your cart.</p><div class="form"><input id="cname" placeholder="Name"><input id="cemail" placeholder="Email"><input id="cphone" placeholder="Phone"><input id="caddress" placeholder="Delivery address"><button onclick="createCustomer()">Register & use customer</button></div><pre id="customerResult"></pre></div><div id="cartPanel" class="panel"><div class="section-title compact"><div><p class="eyebrow">YOUR CART</p><h2>Review your order</h2></div><button onclick="loadCart()">Refresh cart</button></div><div id="cartItems"><p>Your cart is empty.</p></div><div class="checkout"><strong id="cartTotal">Total: LKR 0</strong><button onclick="checkout()">Checkout & generate bill</button></div><pre id="checkoutResult"></pre></div></section>
-<section id="admin" class="hidden"><div class="section-title"><div><p class="eyebrow">ADMIN PORTAL</p><h2>Store management</h2></div></div><div class="admin-grid"><div class="panel"><h3>Add product</h3><div class="form"><input id="pname" placeholder="Product name"><input id="pdescription" placeholder="Description"><input id="pprice" type="number" placeholder="Price"><input id="pstock" type="number" placeholder="Stock"><input id="pimage" placeholder="Image URL"><button onclick="addProduct()">Create product</button></div></div><div class="panel"><h3>Generate an API key</h3><div class="form"><input id="kname" placeholder="Client name"><select id="krole"><option>CUSTOMER</option><option>ADMIN</option></select><button onclick="createKey()">Generate once</button></div><pre id="keyResult"></pre></div><div class="panel"><h3>Orders & bills</h3><button onclick="loadOrders()">Load orders</button><div id="orders"></div></div></div></section>
-</main><footer>Built with Spring Boot · MongoDB · Docker · API Gateway</footer><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>SOC Shop</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <a class="brand">
+        SOC<span>Shop</span>
+    </a>
+
+    <nav>
+        <button onclick="show('shop')">
+            Customer Portal
+        </button>
+
+        <button onclick="showCart()">
+            Cart <span id="cartCount">0</span>
+        </button>
+
+        <button onclick="show('admin')">
+            Admin Portal
+        </button>
+    </nav>
+</header>
+
+<main>
+
+    <section
+        class="hero"
+        style="grid-template-columns: 1fr;"
+    >
+        <div>
+            <p class="eyebrow">
+                MICROSERVICE E-COMMERCE
+            </p>
+
+            <h1>
+                Everything you need,
+                <br>
+                <em>beautifully simple.</em>
+            </h1>
+
+            <p>
+                Products, secure checkout and printable bills
+                in one fast store.
+            </p>
+
+            <button
+                onclick="document.querySelector('#shop').scrollIntoView({
+                    behavior: 'smooth'
+                })"
+            >
+                Start shopping
+            </button>
+        </div>
+    </section>
+
+    <!-- Customer portal -->
+    <section id="shop">
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    CUSTOMER PORTAL
+                </p>
+
+                <h2>Featured products</h2>
+            </div>
+
+            <button onclick="loadProducts()">
+                Refresh
+            </button>
+        </div>
+
+        <div id="products" class="grid">
+            <p>Loading products...</p>
+        </div>
+
+        <div class="panel">
+            <h2>Customer details</h2>
+
+            <p id="activeCustomer" class="notice">
+                Register before adding products to your cart.
+            </p>
+
+            <div class="form">
+                <input
+                    id="cname"
+                    type="text"
+                    placeholder="Name"
+                >
+
+                <input
+                    id="cemail"
+                    type="email"
+                    placeholder="Email"
+                >
+
+                <input
+                    id="cphone"
+                    type="text"
+                    placeholder="Phone"
+                >
+
+                <input
+                    id="caddress"
+                    type="text"
+                    placeholder="Delivery address"
+                >
+
+                <button onclick="createCustomer()">
+                    Register & use customer
+                </button>
+            </div>
+
+            <pre id="customerResult"></pre>
+        </div>
+
+        <!-- Shopping cart -->
+        <div id="cartPanel" class="panel">
+
+            <div class="section-title compact">
+                <div>
+                    <p class="eyebrow">
+                        YOUR CART
+                    </p>
+
+                    <h2>Review your order</h2>
+                </div>
+
+                <button onclick="loadCart()">
+                    Refresh cart
+                </button>
+            </div>
+
+            <div id="cartItems">
+                <p>Your cart is empty.</p>
+            </div>
+
+            <div class="checkout">
+                <strong id="cartTotal">
+                    Total: LKR 0
+                </strong>
+
+                <button onclick="checkout()">
+                    Checkout & generate bill
+                </button>
+            </div>
+
+            <pre id="checkoutResult"></pre>
+        </div>
+
+    </section>
+
+    <!-- Admin portal -->
+    <section id="admin" class="hidden">
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    ADMIN PORTAL
+                </p>
+
+                <h2>Store management</h2>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+
+            <!-- Add product -->
+            <div class="panel">
+                <h3>Add product</h3>
+
+                <div class="form">
+                    <input
+                        id="pname"
+                        type="text"
+                        placeholder="Product name"
+                    >
+
+                    <input
+                        id="pdescription"
+                        type="text"
+                        placeholder="Description"
+                    >
+
+                    <input
+                        id="pprice"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="Price"
+                    >
+
+                    <input
+                        id="pstock"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Stock"
+                    >
+
+                    <input
+                        id="pimage"
+                        type="url"
+                        placeholder="Image URL"
+                    >
+
+                    <button onclick="addProduct()">
+                        Create product
+                    </button>
+                </div>
+            </div>
+
+            <!-- Orders and bills -->
+            <div class="panel">
+                <h3>Orders and bills</h3>
+
+                <button onclick="loadOrders()">
+                    Load orders
+                </button>
+
+                <div id="orders"></div>
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+<footer>
+    Built with Spring Boot · MongoDB · Docker · API Gateway
+</footer>
+
+<script src="app.js"></script>
+
+</body>
+</html>

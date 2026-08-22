@@ -1,72 +1,185 @@
 services:
+
   mongodb:
     image: mongo:7.0
     container_name: ecommerce-mongodb
     restart: unless-stopped
-    expose: ["27017"]
+
+    ports:
+      - "27017:27017"
+
+    expose:
+      - "27017"
+
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-change-me}
-    volumes: [mongo-data:/data/db]
+
+    volumes:
+      - mongo-data:/data/db
+
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval \"db.adminCommand('ping')\""]
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval \"db.adminCommand('ping')\""
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
 
+
   security-service:
-    build: ./member5-security-service
+    build:
+      context: ./member5-security-service
+
     environment:
       MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/securitydb?authSource=admin
+
       INITIAL_ADMIN_KEY: ${INITIAL_ADMIN_KEY:-soc-admin-change-me}
+
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-    depends_on: [mongodb]
-    expose: ["8085"]
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    expose:
+      - "8085"
+
+    restart: unless-stopped
+
 
   product-service:
-    build: ./member1-product-service
+    build:
+      context: ./member1-product-service
+
     environment:
       MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/productdb?authSource=admin
-    depends_on: [mongodb]
-    expose: ["8081"]
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    expose:
+      - "8081"
+
+    restart: unless-stopped
+
 
   customer-service:
-    build: ./member2-customer-service
+    build:
+      context: ./member2-customer-service
+
     environment:
       MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/customerdb?authSource=admin
-    depends_on: [mongodb]
-    expose: ["8082"]
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    expose:
+      - "8082"
+
+    restart: unless-stopped
+
 
   cart-service:
-    build: ./member3-cart-service
+    build:
+      context: ./member3-cart-service
+
     environment:
       MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/cartdb?authSource=admin
-    depends_on: [mongodb]
-    expose: ["8083"]
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    expose:
+      - "8083"
+
+    restart: unless-stopped
+
 
   order-service:
-    build: ./member4-order-service
+    build:
+      context: ./member4-order-service
+
     environment:
       MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-change-me}@mongodb:27017/orderdb?authSource=admin
-    depends_on: [mongodb]
-    expose: ["8084"]
+
+      PRODUCT_URL: http://product-service:8081
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+      product-service:
+        condition: service_started
+
+    expose:
+      - "8084"
+
+    restart: unless-stopped
+
 
   api-gateway:
-    build: ./api-gateway
+    build:
+      context: ./api-gateway
+
     environment:
       SECURITY_URL: http://security-service:8085
       PRODUCT_URL: http://product-service:8081
       CUSTOMER_URL: http://customer-service:8082
       CART_URL: http://cart-service:8083
       ORDER_URL: http://order-service:8084
+
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-    depends_on: [security-service, product-service, customer-service, cart-service, order-service]
-    ports: ["8080:8080"]
+
+    depends_on:
+      security-service:
+        condition: service_started
+
+      product-service:
+        condition: service_started
+
+      customer-service:
+        condition: service_started
+
+      cart-service:
+        condition: service_started
+
+      order-service:
+        condition: service_started
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
 
   client:
-    build: ./client
-    depends_on: [api-gateway]
-    ports: ["3000:80"]
+    build:
+      context: ./client
+
+    environment:
+      # Nginx receives the key from .env.
+      # The key is not available in browser JavaScript.
+      INTERNAL_API_KEY: ${INITIAL_ADMIN_KEY:-soc-admin-change-me}
+
+      # Only replace INTERNAL_API_KEY inside nginx.conf.
+      # Nginx variables such as $uri and $host remain unchanged.
+      NGINX_ENVSUBST_FILTER: INTERNAL_API_KEY
+
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+    ports:
+      - "3000:80"
+
+    restart: unless-stopped
+
 
 volumes:
   mongo-data:
