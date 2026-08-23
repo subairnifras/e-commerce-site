@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>SOC Shop</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <a class="brand">
+        SOC<span>Shop</span>
+    </a>
+
+    <nav>
+        <button
+            id="customerPortalButton"
+            class="hidden"
+            onclick="show('shop')"
+        >
+            Customer Portal
+        </button>
+
+        <button
+            id="cartButton"
+            class="hidden"
+            onclick="showCart()"
+        >
+            Cart <span id="cartCount">0</span>
+        </button>
+
+        <button
+            id="adminPortalButton"
+            class="hidden"
+            onclick="show('admin')"
+        >
+            Admin Portal
+        </button>
+
+        <button
+            id="logoutButton"
+            class="hidden"
+            onclick="logout()"
+        >
+            Logout
+        </button>
+    </nav>
+</header>
+
+<main>
+
+    <!-- Login and registration -->
+    <section id="auth">
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    SECURE ACCESS
+                </p>
+
+                <h1>Welcome to SOC Shop</h1>
+
+                <p>
+                    Customers can create an account.
+                    Administrators can use their configured admin account.
+                </p>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+
+            <!-- Login -->
+            <div class="panel">
+                <h2>Customer / Admin login</h2>
+
+                <div class="form">
+                    <input
+                        id="loginUsername"
+                        type="email"
+                        placeholder="Email or username"
+                        autocomplete="username"
+                    >
+
+                    <input
+                        id="loginPassword"
+                        type="password"
+                        placeholder="Password"
+                        autocomplete="current-password"
+                    >
+
+                    <button onclick="login()">
+                        Login securely
+                    </button>
+                </div>
+
+                <p id="loginResult" class="notice"></p>
+            </div>
+
+            <!-- Customer registration -->
+            <div class="panel">
+                <h2>Create customer account</h2>
+
+                <div class="form">
+                    <input
+                        id="registerName"
+                        type="text"
+                        placeholder="Full name"
+                    >
+
+                    <input
+                        id="registerEmail"
+                        type="email"
+                        placeholder="Email"
+                        autocomplete="username"
+                    >
+
+                    <input
+                        id="registerPassword"
+                        type="password"
+                        placeholder="Password - minimum 8 characters"
+                        autocomplete="new-password"
+                    >
+
+                    <input
+                        id="registerPhone"
+                        type="text"
+                        placeholder="Phone number"
+                    >
+
+                    <input
+                        id="registerAddress"
+                        type="text"
+                        placeholder="Delivery address"
+                    >
+
+                    <button onclick="registerCustomer()">
+                        Register customer
+                    </button>
+                </div>
+
+                <p id="registerResult" class="notice"></p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Customer portal -->
+    <section id="shop" class="hidden">
+
+        <div class="hero" style="grid-template-columns:1fr;">
+            <div>
+                <p class="eyebrow">
+                    CUSTOMER PORTAL
+                </p>
+
+                <h1>
+                    Everything you need,
+                    <br>
+                    <em>beautifully simple.</em>
+                </h1>
+
+                <p id="activeCustomer">
+                    Customer account
+                </p>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    PRODUCTS
+                </p>
+
+                <h2>Featured products</h2>
+            </div>
+
+            <button onclick="loadProducts()">
+                Refresh
+            </button>
+        </div>
+
+        <div id="products" class="grid">
+            <p>Loading products...</p>
+        </div>
+
+        <!-- Shopping cart -->
+        <div id="cartPanel" class="panel">
+
+            <div class="section-title compact">
+                <div>
+                    <p class="eyebrow">
+                        YOUR CART
+                    </p>
+
+                    <h2>Review your order</h2>
+                </div>
+
+                <button onclick="loadCart()">
+                    Refresh cart
+                </button>
+            </div>
+
+            <div id="cartItems">
+                <p>Your cart is empty.</p>
+            </div>
+
+            <div class="checkout">
+                <strong id="cartTotal">
+                    Total: LKR 0
+                </strong>
+
+                <button onclick="checkout()">
+                    Checkout & generate bill
+                </button>
+            </div>
+
+            <pre id="checkoutResult"></pre>
+        </div>
+
+    </section>
+
+    <!-- Admin portal -->
+    <section id="admin" class="hidden">
+
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">
+                    ADMIN PORTAL
+                </p>
+
+                <h2>Store management</h2>
+
+                <p id="activeAdmin"></p>
+            </div>
+        </div>
+
+        <div class="admin-grid">
+
+            <!-- Add product -->
+            <div class="panel">
+                <h3>Add product</h3>
+
+                <div class="form">
+                    <input
+                        id="pname"
+                        type="text"
+                        placeholder="Product name"
+                    >
+
+                    <input
+                        id="pdescription"
+                        type="text"
+                        placeholder="Description"
+                    >
+
+                    <input
+                        id="pprice"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="Price"
+                    >
+
+                    <input
+                        id="pstock"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="Stock"
+                    >
+
+                    <input
+                    id="pimage"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onchange="previewProductImage()"
+                    >
+
+                    <img
+                     id="productImagePreview"
+                     alt="Selected product preview"
+                     class="hidden"
+                     style="
+                     width:100%;
+                     max-height:250px;
+                     object-fit:contain;
+                     border:1px solid #ddd;
+                     border-radius:10px;
+                     margin-top:10px;
+                     "
+                    >
+
+                    <button onclick="addProduct()">
+                        Create product
+                    </button>
+                </div>
+            </div>
+
+            <!-- Orders and bills -->
+            <div class="panel">
+                <h3>Orders and bills</h3>
+
+                <button onclick="loadOrders()">
+                    Load orders
+                </button>
+
+                <div id="orders"></div>
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+<footer>
+    Built with Spring Boot · MongoDB · Docker · API Gateway
+</footer>
+
+<script src="app.js"></script>
+
+</body>
+</html>

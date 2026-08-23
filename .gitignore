@@ -1,0 +1,8 @@
+.envtarget/
+.idea/
+.vscode/
+*.iml
+.env
+data/
+target/
+**/target/
