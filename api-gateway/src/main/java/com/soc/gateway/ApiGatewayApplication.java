@@ -1,5 +1,6 @@
 package com.soc.gateway;
 
+import org.springframework.core.Ordered;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -77,110 +78,101 @@ public class ApiGatewayApplication {
     }
 
     @Bean
-    GlobalFilter authenticationFilter(
-            WebClient webClient,
-            @Value("${app.security-url}") String securityUrl
-    ) {
-        return new GlobalFilter() {
+GlobalFilter authenticationFilter(
+        WebClient webClient,
+        @Value("${app.security-url}") String securityUrl
+) {
+    class OrderedAuthenticationFilter
+            implements GlobalFilter, Ordered {
 
-            @Override
-            public Mono<Void> filter(
-                    ServerWebExchange exchange,
-                    GatewayFilterChain chain
-            ) {
-                String path =
-                        exchange.getRequest().getPath().value();
+        @Override
+        public Mono<Void> filter(
+                ServerWebExchange exchange,
+                GatewayFilterChain chain
+        ) {
+            String path =
+                    exchange.getRequest().getPath().value();
 
-                HttpMethod method =
-                        exchange.getRequest().getMethod();
+            HttpMethod method =
+                    exchange.getRequest().getMethod();
 
-                /*
-                 * Browser preflight and health endpoints.
-                 */
-                if (method == HttpMethod.OPTIONS ||
-                        path.startsWith("/actuator")) {
-                    return chain.filter(exchange);
-                }
+            if (method == HttpMethod.OPTIONS ||
+                    path.startsWith("/actuator")) {
+                return chain.filter(exchange);
+            }
 
-                /*
-                 * Public authentication endpoints.
-                 */
-                if (isPublicAuthenticationEndpoint(path, method)) {
-                    return chain.filter(exchange);
-                }
+            if (isPublicAuthenticationEndpoint(path, method)) {
+                return chain.filter(exchange);
+            }
 
-                /*
-                 * Customer profile must be created before the
-                 * customer login account is registered.
-                 */
-                if (path.equals("/api/customers") &&
-                        method == HttpMethod.POST) {
-                    return chain.filter(exchange);
-                }
+            if (path.equals("/api/customers") &&
+                    method == HttpMethod.POST) {
+                return chain.filter(exchange);
+            }
 
-                String authorization =
-                        exchange.getRequest()
-                                .getHeaders()
-                                .getFirst("Authorization");
+            String authorization =
+                    exchange.getRequest()
+                            .getHeaders()
+                            .getFirst("Authorization");
 
-                String apiKey =
-                        exchange.getRequest()
-                                .getHeaders()
-                                .getFirst("X-API-KEY");
+            String apiKey =
+                    exchange.getRequest()
+                            .getHeaders()
+                            .getFirst("X-API-KEY");
 
-                /*
-                 * Browser user authentication.
-                 */
-                if (authorization != null &&
-                        authorization.startsWith("Bearer ")) {
-                    return validateSession(
-                            webClient,
-                            securityUrl,
-                            authorization
-                    ).flatMap(validation ->
-                            processValidation(
-                                    exchange,
-                                    chain,
-                                    validation
-                            )
-                    ).onErrorResume(error ->
-                            unauthorized(
-                                    exchange,
-                                    "Authentication service unavailable"
-                            )
-                    );
-                }
-
-                /*
-                 * API-key authentication remains available for
-                 * server-to-server or external API clients.
-                 */
-                if (apiKey != null && !apiKey.isBlank()) {
-                    return validateApiKey(
-                            webClient,
-                            securityUrl,
-                            apiKey
-                    ).flatMap(validation ->
-                            processValidation(
-                                    exchange,
-                                    chain,
-                                    validation
-                            )
-                    ).onErrorResume(error ->
-                            unauthorized(
-                                    exchange,
-                                    "Authentication service unavailable"
-                            )
-                    );
-                }
-
-                return unauthorized(
-                        exchange,
-                        "Login is required"
+            if (authorization != null &&
+                    authorization.startsWith("Bearer ")) {
+                return validateSession(
+                        webClient,
+                        securityUrl,
+                        authorization
+                ).flatMap(validation ->
+                        processValidation(
+                                exchange,
+                                chain,
+                                validation
+                        )
+                ).onErrorResume(error ->
+                        unauthorized(
+                                exchange,
+                                "Authentication service unavailable"
+                        )
                 );
             }
-        };
+
+            if (apiKey != null && !apiKey.isBlank()) {
+                return validateApiKey(
+                        webClient,
+                        securityUrl,
+                        apiKey
+                ).flatMap(validation ->
+                        processValidation(
+                                exchange,
+                                chain,
+                                validation
+                        )
+                ).onErrorResume(error ->
+                        unauthorized(
+                                exchange,
+                                "Authentication service unavailable"
+                        )
+                );
+            }
+
+            return unauthorized(
+                    exchange,
+                    "Login is required"
+            );
+        }
+
+        @Override
+        public int getOrder() {
+            return Ordered.HIGHEST_PRECEDENCE;
+        }
     }
+
+    return new OrderedAuthenticationFilter();
+}
 
     private static boolean isPublicAuthenticationEndpoint(
             String path,
