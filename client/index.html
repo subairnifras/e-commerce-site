@@ -277,9 +277,24 @@
                     >
 
                     <input
-                        id="pimage"
-                        type="url"
-                        placeholder="Image URL"
+                    id="pimage"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onchange="previewProductImage()"
+                    >
+
+                    <img
+                     id="productImagePreview"
+                     alt="Selected product preview"
+                     class="hidden"
+                     style="
+                     width:100%;
+                     max-height:250px;
+                     object-fit:contain;
+                     border:1px solid #ddd;
+                     border-radius:10px;
+                     margin-top:10px;
+                     "
                     >
 
                     <button onclick="addProduct()">

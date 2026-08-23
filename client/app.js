@@ -391,7 +391,7 @@ function renderCustomer() {
     }
 
     customerDisplay.textContent =
-        `Buying as ${selectedCustomer.name} · ` +
+        `Buying as ${selectedCustomer.name} Â· ` +
         `Delivery to ${selectedCustomer.address}`;
 }
 
@@ -621,7 +621,7 @@ async function loadCart() {
                         </strong>
 
                         <span>
-                            ${item.quantity} ×
+                            ${item.quantity} Ã—
                             LKR ${item.unitPrice}
                         </span>
 
@@ -741,6 +741,63 @@ async function checkout() {
     }
 }
 
+function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(
+            new Error('Unable to read the selected image')
+        );
+
+        reader.readAsDataURL(file);
+    });
+}
+
+async function previewProductImage() {
+    const imageInput = document.querySelector('#pimage');
+    const preview = document.querySelector('#productImagePreview');
+    const file = imageInput.files[0];
+
+    if (!file) {
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+    }
+
+    const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+        alert('Only JPG, PNG and WebP images are allowed');
+        imageInput.value = '';
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+        alert('The selected image must be smaller than 2 MB');
+        imageInput.value = '';
+        preview.src = '';
+        preview.classList.add('hidden');
+        return;
+    }
+
+    try {
+        preview.src = await fileToDataUrl(file);
+        preview.classList.remove('hidden');
+    } catch (error) {
+        alert(error.message);
+        imageInput.value = '';
+        preview.src = '';
+        preview.classList.add('hidden');
+    }
+}
+
 async function addProduct() {
     if (session()?.role !== 'ADMIN') {
         alert('Administrator access is required');
@@ -763,10 +820,11 @@ async function addProduct() {
     const stock =
         Number(document.querySelector('#pstock').value);
 
-    const imageUrl =
-        document.querySelector('#pimage')
-            .value
-            .trim();
+    const imageInput =
+        document.querySelector('#pimage');
+
+    const imageFile =
+        imageInput.files[0];
 
     if (
         !name ||
@@ -779,7 +837,31 @@ async function addProduct() {
         return;
     }
 
+    if (!imageFile) {
+        alert('Please select a product image');
+        return;
+    }
+
+    const allowedTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp'
+    ];
+
+    if (!allowedTypes.includes(imageFile.type)) {
+        alert('Only JPG, PNG and WebP images are allowed');
+        return;
+    }
+
+    if (imageFile.size > 2 * 1024 * 1024) {
+        alert('The selected image must be smaller than 2 MB');
+        return;
+    }
+
     try {
+        const imageUrl =
+            await fileToDataUrl(imageFile);
+
         await call('/products', {
             method: 'POST',
             body: JSON.stringify({
@@ -797,7 +879,13 @@ async function addProduct() {
         document.querySelector('#pdescription').value = '';
         document.querySelector('#pprice').value = '';
         document.querySelector('#pstock').value = '';
-        document.querySelector('#pimage').value = '';
+        imageInput.value = '';
+
+        const preview =
+            document.querySelector('#productImagePreview');
+
+        preview.src = '';
+        preview.classList.add('hidden');
 
     } catch (error) {
         alert(error.message);
@@ -821,9 +909,9 @@ async function loadOrders() {
             orderList.map(order => `
                 <p>
                     <b>${escapeHtml(order.id)}</b>
-                    — ${escapeHtml(order.customerName)}
-                    — LKR ${Number(order.total).toFixed(2)}
-                    — ${escapeHtml(order.status)}
+                    â€” ${escapeHtml(order.customerName)}
+                    â€” LKR ${Number(order.total).toFixed(2)}
+                    â€” ${escapeHtml(order.status)}
 
                     <button
                         onclick="openBill('${order.id}')"
